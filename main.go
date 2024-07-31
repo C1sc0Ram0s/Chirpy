@@ -54,9 +54,9 @@ func main() {
 
 	router := http.NewServeMux()
 	router.Handle("/app/*", http.StripPrefix("/app", apiCfg.middlewareMetricsInc(http.FileServer(http.Dir(filepathRoot)))))
-	router.HandleFunc("GET /healthz", handlerReadiness)
-	router.HandleFunc("GET /metrics", apiCfg.handlerMetrics)
-	router.HandleFunc("/reset", apiCfg.handlerReset)
+	router.HandleFunc("GET /api/healthz", handlerReadiness)
+	router.HandleFunc("GET /api/metrics", apiCfg.handlerMetrics)
+	router.HandleFunc("/api/reset", apiCfg.handlerReset)
 
 	server := http.Server{
 		Addr:    ":" + port,
