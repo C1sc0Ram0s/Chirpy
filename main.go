@@ -2,13 +2,19 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
+
+	database "github.com/C1sc0Ram0s/Chirpy/internal"
 )
 
 type apiConfig struct {
 	fileserverHits int
+}
+type idConfig struct {
+	id int
 }
 
 func main() {
@@ -18,6 +24,9 @@ func main() {
 	apiCfg := apiConfig{
 		fileserverHits: 0,
 	}
+	idCfg := idConfig{
+		id: 0,
+	}
 
 	router := http.NewServeMux()
 	fsHandler := apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
@@ -25,7 +34,8 @@ func main() {
 
 	router.HandleFunc("GET /api/healthz", handlerReadiness)
 	router.HandleFunc("GET /api/reset", apiCfg.handlerReset)
-	router.HandleFunc("POST /api/validate_chirp", handlerChirpsValidate)
+	router.HandleFunc("POST /api/chirps", idCfg.handlerChirpsValidate)
+	router.HandleFunc("GET /api/chirps", handlerGetChirps)
 
 	router.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
 
@@ -38,12 +48,27 @@ func main() {
 	log.Fatal(server.ListenAndServe())
 }
 
-func handlerChirpsValidate(w http.ResponseWriter, r *http.Request) {
+func handlerGetChirps(w http.ResponseWriter, r *http.Request) {
+	dbConnection, err := database.NewDB("database.json")
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("%v", err))
+	}
+
+	chirps, err := dbConnection.GetChirps()
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("%v", err))
+	}
+
+	respondWithJSON(w, http.StatusOK, chirps)
+}
+
+func (id *idConfig) handlerChirpsValidate(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Body string `json:"body"`
 	}
 	type returnVals struct {
-		CleanedBody string `json:"cleaned_body"`
+		Id   int    `json:"id"`
+		Body string `json:"body"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -67,11 +92,19 @@ func handlerChirpsValidate(w http.ResponseWriter, r *http.Request) {
 	}
 	cleaned := getCleanedBody(params.Body, badWords)
 
+	id.id++
 	chirps := returnVals{
-		CleanedBody: cleaned,
+		Id:   id.id,
+		Body: cleaned,
 	}
 
-	respondWithJSON(w, http.StatusOK, chirps)
+	// Creates new database connection and writes a chirp to disk
+	dbConnection, err := database.NewDB("database.json")
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Database connection failed")
+	}
+	dbConnection.CreateChirp(chirps.Body)
+	respondWithJSON(w, 201, chirps)
 }
 
 func getCleanedBody(body string, badWords map[string]struct{}) string {
