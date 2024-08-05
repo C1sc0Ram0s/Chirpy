@@ -76,16 +76,26 @@ func (db *DB) CreateChirp(body string) (Chirp, error) {
 }
 
 // GetChirps returns all chirps in the DB
-func (db *DB) GetChirps() ([]Chirp, error) {
+func (db *DB) GetChirps(chirpId ...int) ([]Chirp, error) {
 	db.mux.RLock()
 	defer db.mux.RUnlock()
+	chirps := []Chirp{}
 
 	dbStruct, err := db.loadDB()
 	if err != nil {
 		return nil, err
 	}
 
-	chirps := []Chirp{}
+	if chirpId != nil {
+		if _, exists := dbStruct.Chirps[chirpId[0]]; !exists {
+			return []Chirp{}, errors.New("chirp does not exist")
+		} else {
+			chirps = append(chirps, dbStruct.Chirps[chirpId[0]])
+		}
+
+		return chirps, nil
+	}
+
 	for _, chirp := range dbStruct.Chirps {
 		chirps = append(chirps, chirp)
 	}
