@@ -13,7 +13,7 @@ type Chirp struct {
 	Body string `json:"body"`
 }
 
-func (id *idConfig) handlerChirpsValidate(w http.ResponseWriter, r *http.Request) {
+func (id *chirpIdConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Body string `json:"body"`
 	}

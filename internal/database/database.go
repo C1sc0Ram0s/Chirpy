@@ -16,10 +16,15 @@ type DB struct {
 
 type DBStructure struct {
 	Chirps map[int]Chirp `json:"chirps"`
+	Users  map[int]User  `json:"users"`
 }
 type Chirp struct {
 	Id   int    `json:"id"`
 	Body string `json:"body"`
+}
+type User struct {
+	ID    int    `json:"id"`
+	Email string `json:"email"`
 }
 
 // NewDB creates a new DB connection
@@ -43,7 +48,7 @@ func NewDB(path string) (*DB, error) {
 	return &db, nil
 }
 
-// Create a new Chirp and saves to disk/file
+// Create a new Chirp and saves to disk
 func (db *DB) CreateChirp(body string) (Chirp, error) {
 	db.mux.Lock()
 	defer db.mux.Unlock()
@@ -52,7 +57,6 @@ func (db *DB) CreateChirp(body string) (Chirp, error) {
 	if err != nil {
 		return Chirp{}, err
 	}
-	delete(dbStruct.Chirps, 0)
 
 	// Find max ID
 	id := 1
@@ -73,6 +77,37 @@ func (db *DB) CreateChirp(body string) (Chirp, error) {
 		return Chirp{}, err
 	}
 	return chirp, nil
+}
+
+// Create a new user and save to disk
+func (db *DB) CreateUser(email string) (User, error) {
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
+	dbStruct, err := db.loadDB()
+	if err != nil {
+		return User{}, err
+	}
+
+	// Find max ID
+	id := 1
+	for k := range dbStruct.Users {
+		if k >= id {
+			id = k + 1
+		}
+	}
+	user := User{
+		ID:    id,
+		Email: email,
+	}
+	dbStruct.Users[user.ID] = user
+
+	err = db.writeDB(dbStruct)
+	if err != nil {
+		return User{}, err
+	}
+
+	return user, nil
 }
 
 // GetChirps returns all chirps in the DB
@@ -108,23 +143,27 @@ func (db *DB) GetChirps(chirpId ...int) ([]Chirp, error) {
 
 // ensureDB creates a new DB file if it doesn't exist
 func (db *DB) ensureDB() error {
-	emptyDB := DBStructure{Chirps: make(map[int]Chirp)}
+	emptyDB := DBStructure{Chirps: make(map[int]Chirp), Users: make(map[int]User)}
 	return db.writeDB(emptyDB)
 }
 
 // loadDB reads the database file into memory
 func (db *DB) loadDB() (DBStructure, error) {
 	data, err := os.ReadFile(db.path)
+	var dbStruct DBStructure
 	if err != nil {
 		// If the file doesn't exist, return an empty strut with initialized map
 		if errors.Is(err, os.ErrNotExist) {
-			return DBStructure{Chirps: make(map[int]Chirp)}, nil
+			dbStruct = DBStructure{
+				Chirps: make(map[int]Chirp),
+				Users:  make(map[int]User),
+			}
+			return dbStruct, nil
 		} else {
-			return DBStructure{}, err
+			return dbStruct, err
 		}
 	}
 
-	var dbStruct DBStructure
 	err = json.Unmarshal(data, &dbStruct)
 	if err != nil {
 		return DBStructure{}, nil
