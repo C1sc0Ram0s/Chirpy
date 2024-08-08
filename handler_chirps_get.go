@@ -1,54 +1,49 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
-
-	database "github.com/C1sc0Ram0s/Chirpy/internal/database"
 )
 
-func handlerGetChirpID(w http.ResponseWriter, r *http.Request) {
-	type returnVals struct {
-		Id   int    `json:"id"`
-		Body string `json:"body"`
-	}
-	dbConnection, err := database.NewDB("database.json")
+func (cfg *apiConfig) handlerChirpsGetByID(w http.ResponseWriter, r *http.Request) {
+	chirpIDString := r.PathValue("chirpID")
+	chirpID, err := strconv.Atoi(chirpIDString)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("%v", err))
+		respondWithError(w, http.StatusBadRequest, "Invalid chirp ID")
 		return
 	}
 
-	chirpId, err := strconv.Atoi(r.PathValue("chirpID"))
+	dbChirp, err := cfg.DB.GetChirp(chirpID)
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("%v", err))
+		respondWithError(w, http.StatusNotFound, "Couldn't get chirp")
 		return
 	}
 
-	chirp, err := dbConnection.GetChirps(chirpId)
-	if err != nil {
-		respondWithError(w, 404, fmt.Sprintf("%v", err))
-		return
-	}
-
-	ret := returnVals{
-		Id:   chirp[0].Id,
-		Body: chirp[0].Body,
-	}
-	respondWithJSON(w, http.StatusOK, ret)
-
+	respondWithJSON(w, http.StatusOK, Chirp{
+		ID:   dbChirp.ID,
+		Body: dbChirp.Body,
+	})
 }
 
-func handlerGetChirps(w http.ResponseWriter, r *http.Request) {
-	dbConnection, err := database.NewDB("database.json")
+func (cfg *apiConfig) handlerChirpsGet(w http.ResponseWriter, r *http.Request) {
+	dbChirps, err := cfg.DB.GetChirps()
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("%v", err))
+		respondWithError(w, http.StatusInternalServerError, "Couldn't retrieve chirps")
+		return
 	}
 
-	chirps, err := dbConnection.GetChirps()
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("%v", err))
+	chirps := []Chirp{}
+	for _, dbChirp := range dbChirps {
+		chirps = append(chirps, Chirp{
+			ID:   dbChirp.ID,
+			Body: dbChirp.Body,
+		})
 	}
+
+	sort.Slice(chirps, func(i, j int) bool {
+		return chirps[i].ID < chirps[j].ID
+	})
 
 	respondWithJSON(w, http.StatusOK, chirps)
 }

@@ -2,18 +2,17 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
-
-	database "github.com/C1sc0Ram0s/Chirpy/internal/database"
 )
 
 type Chirp struct {
-	Id   int    `json:"id"`
+	ID   int    `json:"id"`
 	Body string `json:"body"`
 }
 
-func (id *chirpIdConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Body string `json:"body"`
 	}
@@ -26,10 +25,28 @@ func (id *chirpIdConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	const maxChirpLength = 140
-	if len(params.Body) > maxChirpLength {
-		respondWithError(w, http.StatusBadRequest, "Chirp is too long")
+	cleaned, err := validateChirp(params.Body)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
+	}
+
+	chirp, err := cfg.DB.CreateChirp(cleaned)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't create chirp")
+		return
+	}
+
+	respondWithJSON(w, http.StatusCreated, Chirp{
+		ID:   chirp.ID,
+		Body: chirp.Body,
+	})
+}
+
+func validateChirp(body string) (string, error) {
+	const maxChirpLength = 140
+	if len(body) > maxChirpLength {
+		return "", errors.New("Chirp is too long")
 	}
 
 	badWords := map[string]struct{}{
@@ -37,28 +54,15 @@ func (id *chirpIdConfig) handlerChirpsCreate(w http.ResponseWriter, r *http.Requ
 		"sharbert":  {},
 		"fornax":    {},
 	}
-	cleaned := getCleanedBody(params.Body, badWords)
-
-	id.id++
-	chirps := Chirp{
-		Id:   id.id,
-		Body: cleaned,
-	}
-
-	// Creates new database connection and writes a chirp to disk
-	dbConnection, err := database.NewDB("database.json")
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Database connection failed")
-	}
-	dbConnection.CreateChirp(chirps.Body)
-	respondWithJSON(w, 201, chirps)
+	cleaned := getCleanedBody(body, badWords)
+	return cleaned, nil
 }
 
 func getCleanedBody(body string, badWords map[string]struct{}) string {
 	words := strings.Split(body, " ")
 	for i, word := range words {
-		lowerWord := strings.ToLower(word)
-		if _, exists := badWords[lowerWord]; exists {
+		loweredWord := strings.ToLower(word)
+		if _, ok := badWords[loweredWord]; ok {
 			words[i] = "****"
 		}
 	}
