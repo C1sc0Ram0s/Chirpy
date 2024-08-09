@@ -13,6 +13,7 @@ type User struct {
 	ID       int    `json:"id"`
 	Email    string `json:"email"`
 	Password string `json:"-"`
+	JwtToken string `json:"token"`
 }
 
 func (cfg *apiConfig) handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
@@ -21,7 +22,8 @@ func (cfg *apiConfig) handlerUsersCreate(w http.ResponseWriter, r *http.Request)
 		Email    string `json:"email"`
 	}
 	type response struct {
-		User
+		ID    int    `json:"id"`
+		Email string `json:"email"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -50,9 +52,7 @@ func (cfg *apiConfig) handlerUsersCreate(w http.ResponseWriter, r *http.Request)
 	}
 
 	respondWithJSON(w, http.StatusCreated, response{
-		User: User{
-			ID:    user.ID,
-			Email: user.Email,
-		},
+		ID:    user.ID,
+		Email: user.Email,
 	})
 }
