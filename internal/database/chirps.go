@@ -1,5 +1,9 @@
 package database
 
+import (
+	"errors"
+)
+
 type Chirp struct {
 	ID       int    `json:"id"`
 	AuthorID int    `json:"author_id"`
@@ -12,7 +16,13 @@ func (db *DB) CreateChirp(userID int, body string) (Chirp, error) {
 		return Chirp{}, err
 	}
 
-	id := len(dbStructure.Chirps) + 1
+	id := 1
+	for _, chirp := range dbStructure.Chirps {
+		if chirp.ID > id {
+			id = chirp.ID + 1
+		}
+	}
+
 	chirp := Chirp{
 		ID:       id,
 		Body:     body,
@@ -54,4 +64,28 @@ func (db *DB) GetChirp(id int) (Chirp, error) {
 	}
 
 	return chirp, nil
+}
+
+func (db *DB) DeleteChirp(id, userID int) error {
+	dbStructure, err := db.loadDB()
+	if err != nil {
+		return err
+	}
+
+	chirp, exists := dbStructure.Chirps[id]
+	if !exists {
+		return err
+	}
+
+	if chirp.AuthorID == userID {
+		delete(dbStructure.Chirps, id)
+		err = db.writeDB(dbStructure)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	return errors.New("unauthorized delete")
+
 }
