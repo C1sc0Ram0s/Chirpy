@@ -86,6 +86,21 @@ func GetBearerToken(headers http.Header) (string, error) {
 	return splitAuth[1], nil
 }
 
+// Get ApiKey
+func GetApiKey(headers http.Header) (string, error) {
+	apiHeader := headers.Get("Authorization")
+	if apiHeader == "" {
+		return "", ErrNoAuthHeaderIncluded
+	}
+
+	splitApi := strings.Split(apiHeader, " ")
+	if len(splitApi) < 2 || splitApi[0] != "ApiKey" {
+		return "", errors.New("malformed authorization header")
+	}
+
+	return splitApi[1], nil
+}
+
 // MakeRefreshToken -
 func MakeRefreshToken() (string, error) {
 	bytes := make([]byte, 32)
