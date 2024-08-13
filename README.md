@@ -1,6 +1,6 @@
 # Chirpy
 
-Chirpy is a Twitter-like social network project designed to help learn the fundamentals of building web servers from scratch using Go.
+Chirpy is a Twitter-like social network project designed to help me learn the fundamentals of building web servers from scratch using Go.
 
 ## Project Overview
 
