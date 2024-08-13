@@ -18,7 +18,7 @@ func (db *DB) CreateChirp(userID int, body string) (Chirp, error) {
 
 	id := 1
 	for _, chirp := range dbStructure.Chirps {
-		if chirp.ID > id {
+		if chirp.ID >= id {
 			id = chirp.ID + 1
 		}
 	}
